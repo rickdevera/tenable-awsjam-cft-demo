@@ -24,17 +24,37 @@ Resources:
         - AAAMI
       NetworkInterfaces:
          - AssociatePublicIpAddress: "true"
-           PrivateIpAddress: '10.1.2.10'
+           PrivateIpAddress: '172.16.1.10'
            DeviceIndex: "0"
            GroupSet:
-             - Ref: AwsPublicSecurityGroup
+             - Ref: AwsDriftDemoSecurityGroup
            SubnetId: 
-            Ref: AwsJamPublicSubnet
+            Ref: AWSJamDriftSubnet
            DeleteOnTermination: "true"
       Tags:
         - Key: Name
           Value: "drift_demo"
-  AwsInternalSecurityGroup:
+  ##########
+#  Drift Demo Section
+###########        
+  AWSJamDriftVPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock:  172.16.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+  AWSJamDriftSubnet:
+    Type:  'AWS::EC2::Subnet'
+    Properties:
+      VpCId: !Ref AWSJamDriftVPC
+      CidrBlock:  172.16.1.0/24
+      AvailabilityZone: !Select 
+        - '0'
+        - !GetAZs ''
+      Tags:
+        - Key:  Name
+          Value:  "drift_demo"
+  AwsDriftDemoSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
       GroupDescription: comm between internal networks
@@ -48,6 +68,10 @@ Resources:
           ToPort: 8080
           CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
+          FromPort: 9020
+          ToPort: 9020
+          CidrIp: 10.0.0.0/16 
+        - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           CidrIp: 10.0.0.0/16
@@ -56,69 +80,43 @@ Resources:
           FromPort: 0
           ToPort: 0
           CidrIp: 10.1.0.0/16
-      VpcId: !Ref AWSJamVPC
+      VpcId: !Ref AWSJamDriftVPC
       Tags:
         - Key: Name
           Value: "drift_demo"
-  AWSJamVPC:
-    Type: 'AWS::EC2::VPC'
-    Properties:
-      CidrBlock: 10.1.0.0/16
-      EnableDnsSupport: true
-      EnableDnsHostnames: true
-    Metadata:
-      'AWS::CloudFormation::Designer':
-        id: fddde793-4fce-4f6f-939d-0d8781d3ba3d
-  AWSJamInternalSubnet:
-    Type: 'AWS::EC2::Subnet'
-    Properties:
-      VpcId: !Ref AWSJamVPC
-      CidrBlock: 10.1.2.0/24
-      AvailabilityZone: !Select 
-        - '0'
-        - !GetAZs ''
-    Metadata:
-      'AWS::CloudFormation::Designer':
-        id: d1663f3a-2a13-4f2e-bf43-8adbf683a5cc
-  AwsJamIGW:
+########
+##  End Drift Section
+########
+  AwsJamDriftIGW:
     Type: 'AWS::EC2::InternetGateway'
     Properties: {}
     Metadata:
       'AWS::CloudFormation::Designer':
         id: b9b95cb8-e623-40d8-9c19-b6c361c76e79
-  AwsJamRouteTable:
+  AwsJamDriftRouteTable:
     Type: 'AWS::EC2::RouteTable'
     Properties:
-      VpcId: !Ref AWSJamVPC
+      VpcId: !Ref AWSJamDriftVPC
     Metadata:
       'AWS::CloudFormation::Designer':
         id: 098c11b6-3f03-4c58-bd8a-be133ef73fe9
-  AwsJamPublicRoute:
+  AwsJamDriftPublicRoute:
     Type: 'AWS::EC2::Route'
     Properties:
-      RouteTableId: !Ref AwsJamRouteTable
+      RouteTableId: !Ref AwsJamDriftRouteTable
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: 
-        Ref: AwsJamIGW
+        Ref: AwsJamDriftIGW
     Metadata:
       'AWS::CloudFormation::Designer':
         id: 0073d26b-d5df-4cf1-81cd-f8dad8f8ece7
     DependsOn:
-      - AwsJamIGW
+      - AwsJamDriftIGW
   EC2VPCG3CQWV:
     Type: 'AWS::EC2::VPCGatewayAttachment'
     Properties:
-      VpcId: !Ref AWSJamVPC
-      InternetGatewayId: !Ref AwsJamIGW
-  AwsJamPublicSubnet:
-    Type: 'AWS::EC2::Subnet'
-    Properties:
-      VpcId: !Ref AWSJamVPC
-      CidrBlock: 10.1.1.0/24
-    Metadata:
-      'AWS::CloudFormation::Designer':
-        id: ed11ad6b-d0c4-4304-bcba-34b112fbb9bd
-Outputs:
+      VpcId: !Ref AWSJamDriftVPC
+      InternetGatewayId: !Ref AwsJamDriftIGW
 Mappings:
   RegionMap:
     us-east-1:
